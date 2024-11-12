@@ -65,6 +65,9 @@ public class S3LogFileStoragePlugin implements ExecutionFileStoragePlugin, AWSCr
             "'accessKey' and 'secretKey'.")
     private String AWSCredentialsFile;
 
+    @PluginProperty(title = "Role to Assume", description = "ARN for the role to Assume to have access to S3 Bucket.")
+    private String AWSAssumeRole;
+
     @PluginProperty(title = "Bucket name", required = true, description = "Bucket to store files in")
     private String bucket;
 
@@ -149,6 +152,25 @@ public class S3LogFileStoragePlugin implements ExecutionFileStoragePlugin, AWSCr
                 throw new RuntimeException("Credentials file could not be read: " + getAWSCredentialsFile() + ": " + e
                         .getMessage(), e);
             }
+        } else if (null != getAWSAssumeRole()){
+            AmazonSecurityTokenService stsClient = stsClientBuilder.build();
+            AssumeRoleRequest assumeRoleRequest = new AssumeRoleRequest()
+                .withRoleArn(AWSAssumeRole)
+                .withRoleSessionName("rundecksession")
+                .withExternalId("S3WriteForRundeck");
+            AssumeRoleResult assumeRoleResult = stsClient.assumeRole(assumeRoleRequest);
+            BasicSessionCredentials sessionCredentials = new BasicSessionCredentials(
+                assumeRoleResult.getCredentials().getAccessKeyId(),
+                assumeRoleResult.getCredentials().getSecretAccessKey(),
+                assumeRoleResult.getCredentials().getSessionToken());
+            try {
+                AmazonS3 amazonS3 = AmazonS3ClientBuilder.standard()
+                    .withCredentials(sessionCredentialsProvider)
+                    .build();
+            } catch (IOException e) {
+                throw new RuntimeException("ERROR: Unable to create S3 Client: " + e
+                        .getMessage(), e);
+            }
         } else {
             //use credentials provider chain
             amazonS3 = createAmazonS3Client();
@@ -198,7 +220,6 @@ public class S3LogFileStoragePlugin implements ExecutionFileStoragePlugin, AWSCr
         if (expandedPath.endsWith("/")) {
             throw new IllegalArgumentException("expanded value of path must not end with /");
         }
-
     }
 
     /**
@@ -216,7 +237,6 @@ public class S3LogFileStoragePlugin implements ExecutionFileStoragePlugin, AWSCr
         } else {
             return new AmazonS3Client(awsCredentials);
         }
-
     }
     /**
      * can override for testing
@@ -231,7 +251,6 @@ public class S3LogFileStoragePlugin implements ExecutionFileStoragePlugin, AWSCr
         } else {
             return new AmazonS3Client();
         }
-
     }
 
     /**
@@ -509,6 +528,10 @@ public class S3LogFileStoragePlugin implements ExecutionFileStoragePlugin, AWSCr
     }
 
 
+    public String getAWSAssumeRole() {
+        return AWSAssumeRole;
+    }
+    
     public String getAWSAccessKeyId() {
         return AWSAccessKeyId;
     }
