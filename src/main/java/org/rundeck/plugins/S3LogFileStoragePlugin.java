@@ -4,12 +4,20 @@ import com.amazonaws.AmazonClientException;
 import com.amazonaws.SdkClientException;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.PropertiesCredentials;
+import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.auth.BasicSessionCredentials;
 import com.amazonaws.regions.Region;
 import com.amazonaws.regions.RegionUtils;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.S3ClientOptions;
 import com.amazonaws.services.s3.model.*;
+import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
+import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder;
+import com.amazonaws.services.securitytoken.model.AssumeRoleRequest;
+import com.amazonaws.services.securitytoken.model.AssumeRoleResult;
+import com.amazonaws.services.securitytoken.model.Credentials;
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.SDKGlobalConfiguration;
 import com.dtolabs.rundeck.core.dispatcher.DataContextUtils;
@@ -31,7 +39,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-
+// GBG: Add assume role pattern: https://joelforjava.com/blog/2019/11/27/using-assume-role-with-aws-sdk.html
+// https://docs.aws.amazon.com/AmazonS3/latest/API/AuthUsingTempSessionToken.html
+// https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/auth/AWSCredentialsProvider.html
 /**
  * {@link ExecutionFileStoragePlugin} that stores files to Amazon S3.
  */
@@ -64,6 +74,9 @@ public class S3LogFileStoragePlugin implements ExecutionFileStoragePlugin, AWSCr
             "containing " +
             "'accessKey' and 'secretKey'.")
     private String AWSCredentialsFile;
+
+    @PluginProperty(title = "Role to Assume", description = "ARN for the role to Assume to have access to S3 Bucket.")
+    private String AWSAssumeRole;
 
     @PluginProperty(title = "Bucket name", required = true, description = "Bucket to store files in")
     private String bucket;
@@ -149,6 +162,26 @@ public class S3LogFileStoragePlugin implements ExecutionFileStoragePlugin, AWSCr
                 throw new RuntimeException("Credentials file could not be read: " + getAWSCredentialsFile() + ": " + e
                         .getMessage(), e);
             }
+        } else if (null != getAWSAssumeRole()){
+            AmazonSecurityTokenService stsClient = stsClientBuilder.build();
+            AssumeRoleRequest assumeRoleRequest = new AssumeRoleRequest()
+                .withRoleArn(AWSAssumeRole)
+                .withRoleSessionName("rundecksession")
+                .withExternalId("S3WriteForRundeck");
+            AssumeRoleResult assumeRoleResult = stsClient.assumeRole(assumeRoleRequest);
+            BasicSessionCredentials sessionCredentials = new BasicSessionCredentials(
+                assumeRoleResult.getCredentials().getAccessKeyId(),
+                assumeRoleResult.getCredentials().getSecretAccessKey(),
+                assumeRoleResult.getCredentials().getSessionToken());
+            try {
+                AmazonS3 amazonS3 = AmazonS3ClientBuilder.standard()
+                    .withCredentials(sessionCredentialsProvider)
+                    .build();
+            } catch (IOException e) {
+                throw new RuntimeException("ERROR: Unable to create S3 Client: " + e
+                        .getMessage(), e);
+            }
+        
         } else {
             //use credentials provider chain
             amazonS3 = createAmazonS3Client();
@@ -501,6 +534,9 @@ public class S3LogFileStoragePlugin implements ExecutionFileStoragePlugin, AWSCr
         }
     }
 
+    public String getAWSAssumeRole() {
+        return AWSAssumeRole;
+    }
 
     public String getAWSAccessKeyId() {
         return AWSAccessKeyId;
