@@ -64,6 +64,7 @@ dependencies {
             exclude group: "com.fasterxml.jackson.core"
             exclude group: "com.fasterxml.jackson.dataformat"
     }
+    implementation "com.amazonaws:aws-java-sdk-sts:${awsSdkVersion}"
     pluginLibs (group: 'com.amazonaws', name: 'aws-java-sdk-sts', version: "${awsSdkVersion}") {
             exclude group: "com.fasterxml.jackson.core"
             exclude group: "com.fasterxml.jackson.dataformat"
