@@ -50,6 +50,7 @@ The plugin allows you to set the following property key/values for **credentials
 `AWSSecretKey`: AWS secret key, required if using `AWSAccessKeyId`
 `AWSCredentialsFile`: Properties file which contains `accessKey` and `secretKey` entries. The alternative to specifying
 the `AWSAccessKeyId` and `AWSSecretKey`
+`AWSAssumeRole`: If you setup up to be able to assume Role, then this is the role you want to Assume into, prerequisite is to setup the role this is running as to have assume role to role defined. More information can be found here: https://awscli.amazonaws.com/v2/documentation/api/latest/reference/sts/assume-role.html
 
 The plugin uses uses the following key/values for configuring the **AWS S3 Bucket**:
 
@@ -90,6 +91,9 @@ framework.plugin.ExecutionFileStorage.org.rundeck.amazon-s3.bucket=test-rundeck-
 
 # Path to store the logs
 framework.plugin.ExecutionFileStorage.org.rundeck.amazon-s3.path=logs/${job.project}/${job.execid}.log
+
+# AWSAssumeRole can be specified in the file
+framework.plugin.ExecutionFileStorage.org.rundeck.amazon-s3.AWSAssumeRole=arn:aws:iam::012345678901:role/AssumeRoleName
 ```
 
 ## Using with Rundeck SSL Configuration

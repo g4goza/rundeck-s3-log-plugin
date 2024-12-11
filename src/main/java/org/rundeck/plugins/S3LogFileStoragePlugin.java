@@ -42,9 +42,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-// GBG: Add assume role pattern: https://joelforjava.com/blog/2019/11/27/using-assume-role-with-aws-sdk.html
-// https://docs.aws.amazon.com/AmazonS3/latest/API/AuthUsingTempSessionToken.html
-// https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/auth/AWSCredentialsProvider.html
 /**
  * {@link ExecutionFileStoragePlugin} that stores files to Amazon S3.
  */
@@ -534,6 +531,10 @@ public class S3LogFileStoragePlugin implements ExecutionFileStoragePlugin, AWSCr
 
     public String getAWSAssumeRole() {
         return AWSAssumeRole;
+    }
+
+    public void setAWSAssumeRole() {
+        this.AWSAssumeRole = AWSAssumeRole;
     }
 
     public String getAWSAccessKeyId() {
